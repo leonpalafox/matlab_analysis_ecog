@@ -70,9 +70,10 @@ labels = labelize(force, force_threshold);
 [b,dev,stats] = glmfit(power_matrix ,labels,'binomial','logit'); % Logistic regression
 imagesc(reshape(b(2:end),num_chan, size(F,1)))%generates a heat map with x axis as the frequency and y as the channel
 colorbar;
-set(gca,'XTick',[1:size(F,1)]);% shows ticks for every bin
+perc_graph = 0.1 %this controls the major ticks of the plot to every 10% of the total
+set(gca,'XTick',[1:floor(size(F,1)*perc_graph):size(F,1)]);% shows ticks for every bin
 set(gca,'YTick',[1:num_chan]);% limits the ticks for the channels
-set(gca,'XTickLabel',F); %set the ticks to be the center frequency
+set(gca,'XTickLabel',F(1:floor(size(F,1)*perc_graph):end)); %set the ticks to be the center frequency
 xlabel('Frequency[Hz]')
 ylabel('Channel')
 toc
