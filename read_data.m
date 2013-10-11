@@ -1,11 +1,23 @@
 %This script loads the data from the PennPrject dataset into the matlab
 %environment
 clear
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%Set the critical variables
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+num_chan = 16;
+originalSamplingRate = 25000;
+desired_samplingRate = 5000; %This is the desired post decimating sampling rate
+decimate_factor = originalSamplingRate/desired_samplingRate;%set the decimation factor
+samplingRate = originalSamplingRate/decimate_factor; %The 25000 is hardcoded to the sampling rate we used to do the data capture.
+window_size = 0.300; %size of the window in seconds
+window_size = window_size * samplingRate; %transform the window size to samples
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 tic
+%Read the data files
 root_path = ['/home/leon/Data/Penn/Oct_1'];
 time_stamps_file = [root_path '/data_click_Tue_01.10.2013_10:12:28'];
 data_file = [root_path '/data_Tue_01.10.2013_10:12:24'];
-num_chan = 16;
 fid = fopen(time_stamps_file,'r');
 %read first column
 fseek(fid, 0, 'bof'); 
@@ -31,9 +43,13 @@ for chidx=2:num_chan
     channels_data (:,chidx) = fread(fid, Inf, 'float', 4*19+8);%copy everything to the pre created array
 end
 fclose(fid);
+break
+%finsih reading data files
+
+%pre process data files (trim, decimate)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 channels_data = channels_data(clickTime(1):clickTime(10),:);%grab segments between click to ensure the data is clean
 force = force(clickTime(1):clickTime(10),:);
-decimate_factor = 5;%set the decimation factor
 x=decimate(channels_data(:,1), decimate_factor);%set a decimation on the first channel to get the value of the matrix
 force = decimate(force, decimate_factor);
 channels_data_dec = zeros(size(x,1), num_chan);%generate matrix for speed purposes
@@ -41,16 +57,17 @@ for chidx=2:num_chan
     channels_data_dec(:,chidx) = decimate(channels_data(:,chidx), decimate_factor); %do the decimation of the data
 end
 channels_data = channels_data_dec;
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 %clean the workspace to free up memory
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%55
 clear x;
 clear channels_data_dec;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 mean_data = repmat(mean(channels_data,2),1,num_chan);%obtain the mean and repeat it over the number of channels for the later operation.
 channels_data=channels_data-mean_data; %rest the mean to normalize
-samplingRate = 25000/decimate_factor; %The 25000 is hardcoded to the sampling rate we used to do the data capture.
-window_size = 0.300; %size of the window in seconds
-window_size = window_size * samplingRate; %transform the window size to samples
+
 %calculate the spectrogram for the first channel to generate the matrix
 [S,F,T,P] = spectrogram(channels_data(:,1), hann(window_size), 0, window_size, samplingRate);
 [power_p, time_p] = size(P);
@@ -68,9 +85,13 @@ force = force(match_idx,1);%recapture the force using the matched indexes
 force_threshold = 0.2;
 labels = labelize(force, force_threshold);
 [b,dev,stats] = glmfit(power_matrix ,labels,'binomial','logit'); % Logistic regression
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%Plotting Section
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+perc_graph = 0.1; %this controls the major ticks of the plot to every 10% of the total
+
 imagesc(reshape(b(2:end),num_chan, size(F,1)))%generates a heat map with x axis as the frequency and y as the channel
 colorbar;
-perc_graph = 0.1 %this controls the major ticks of the plot to every 10% of the total
 set(gca,'XTick',[1:floor(size(F,1)*perc_graph):size(F,1)]);% shows ticks for every bin
 set(gca,'YTick',[1:num_chan]);% limits the ticks for the channels
 set(gca,'XTickLabel',F(1:floor(size(F,1)*perc_graph):end)); %set the ticks to be the center frequency
