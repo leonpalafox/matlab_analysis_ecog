@@ -11,8 +11,15 @@ function [batch_data] = return_batch( data_file, size_of_batch, samplingRate, ba
 %
 %if the batch number is inconsistent with the size of the batch, and error
 %will be created.
-num_chan = 16;
-num_4_byte_column = 4+num_chan; %number of columns that have 4 bytes 
+%if the batch is the last one, the function will return the rest available
+%data, whcih won't have the requested size because is what is left in the
+%file.
+%Before using the function we recomend to calculate the number of batches
+%first, although if there is a mismatch, the function will indicate which is
+%this.
+num_chan = get_variables('number_of_channels');
+num_record_chan =  get_variables('number_recorded_channels');
+num_4_byte_column = 4+num_record_chan; %number of columns that have 4 bytes 
 dinfo = dir(data_file); %get the information of the data file
 num_rows = dinfo.bytes/(8+num_4_byte_column*4);% we need to divide the total amount of bytes by the amount of bytes per row.
 %The amount of bytes per row depends on the data format
@@ -20,7 +27,7 @@ total_time = num_rows/samplingRate;%calculate the total time of captured data
 batch_size_samples = floor((size_of_batch/total_time)*num_rows);%calculate the number of samples that correspond to the desired size
 
 %calculate the maximum number of batches
-max_num_batches = floor(total_time/size_of_batch);
+max_num_batches = ceil(total_time/size_of_batch);
 
 if batch_number > max_num_batches
     error('The requested batch is larger than the possible number of batches');
