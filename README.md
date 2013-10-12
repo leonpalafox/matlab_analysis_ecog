@@ -14,7 +14,7 @@ Batches are defined by the user and subsampling frequencies are set in the file 
 
 Right now, it appends the new batches, which may be potentially slow
 
-TODO: Precauculate the size of the spectrogram to generate a nameholder matrix to populate
+TODO: Precalculate the size of the spectrogram to generate a nameholder matrix to populate
 
 Parallelize the computation of the batches to further speed up the calculations.
 
