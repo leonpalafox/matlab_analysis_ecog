@@ -12,18 +12,13 @@ function [ variable ] = get_variables( variable_name )
 
 switch variable_name
     case 'number_of_channels'
-        %desired number of channels to work with
         variable = 16;
     case 'Original_Sampling_Rate'
         variable = 25000;
     case 'Desired_Sampling_Rate'
-        variable = 5000;
+        variable = 500;
     case 'Window_Size'
-        variable = 0.300;
-    case 'number_recorded_channels'
-        %number of channels recorded
-        variable = 16;
-        
+        variable =
         
 end
 

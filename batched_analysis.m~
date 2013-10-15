@@ -10,7 +10,7 @@ originalSamplingRate = get_variables('Original_Sampling_Rate');
 desired_samplingRate = get_variables('Desired_Sampling_Rate'); %This is the desired post decimating sampling rate
 decimate_factor = originalSamplingRate/desired_samplingRate;%set the decimation factor
 samplingRate = originalSamplingRate/decimate_factor; %The 25000 is hardcoded to the sampling rate we used to do the data capture.
-window_size = 0.10; %size of the window in seconds
+window_size = 0.300; %size of the window in seconds
 window_size = window_size * samplingRate; %transform the window size to samples
 size_of_batch = 10; %size of the batch in seconds
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -21,7 +21,6 @@ size_of_batch = 10; %size of the batch in seconds
 root_path = ['/home/leon/Data/Penn/Oct_11'];
 %time_stamps_file = [root_path '/data_click_Tue_01.10.2013_10:12:28'];
 data_file = [root_path '/data'];
-data_file = 'dummy.bin';
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -35,7 +34,7 @@ total_time = num_rows/originalSamplingRate;%calculate the total time of captured
 batch_size_samples = floor((size_of_batch/total_time)*num_rows);%calculate the number of samples that correspond to the desired size
 %calculate the maximum number of batches
 max_num_batches = ceil(total_time/size_of_batch);
-%max_num_batches = 10;
+max_num_batches = 10;
 %finsih reading data files
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -57,7 +56,6 @@ for batch_idx = 1:max_num_batches
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     channels_data = return_batch(data_file, size_of_batch, originalSamplingRate, batch_idx, 'eeg');
     force = return_batch(data_file, size_of_batch, originalSamplingRate, batch_idx, 'force');
-  
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
     %pre process data files (trim, decimate)
@@ -66,7 +64,6 @@ for batch_idx = 1:max_num_batches
     x=decimate(channels_data(:,1), decimate_factor);%set a decimation on the first channel to get the value of the matrix
     force = decimate(force, decimate_factor);
     channels_data_dec = zeros(size(x,1), num_chan);%generate matrix for speed purposes
-    
     for chidx=2:num_chan
         channels_data_dec(:,chidx) = decimate(channels_data(:,chidx), decimate_factor); %do the decimation of the data
     end
@@ -107,7 +104,7 @@ end
 
 toc
 offset_time = 0.010; %offset in seconds
-%large_labels = offset_label(large_labels', offset_time, 'positive')';%add an offset to the labels
+large_labels = offset_label(large_labels', offset_time)';%add an offset to the labels
 [b,dev,stats] = glmfit(large_power_matrix ,large_labels,'binomial','logit'); % Logistic regression
 coeff_test = testing_hyp(b);%test hypotesis to check whcih values are non zero
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -123,11 +120,9 @@ set(gca,'XTickLabel',F(1:floor(size(F,1)*perc_graph):end)); %set the ticks to be
 set(gca,'XMinorTick','on'); %set the minor ticks on
 xlabel('Frequency[Hz]')
 ylabel('Channel')
-
-%plot the hypotesis testing
 figure
 perc_graph = 0.1; %this controls the major ticks of the plot to every 10% of the total
-imagesc(reshape(stats.p(2:end),num_chan, size(F,1)))%generates a heat map with x axis as the frequency and y as the channel
+imagesc(reshape(b(2:end),num_chan, size(F,1)))%generates a heat map with x axis as the frequency and y as the channel
 colorbar;
 set(gca,'XTick',[1:floor(size(F,1)*perc_graph):size(F,1)]);% shows ticks for every bin
 set(gca,'YTick',[1:num_chan]);% limits the ticks for the channels

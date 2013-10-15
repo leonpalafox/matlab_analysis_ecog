@@ -1,0 +1,31 @@
+function [nearVal, index] = findNearest(x, desiredVal)
+%% 
+%
+% Parameters:
+%
+% x: the matrix in which you want to search
+%
+% desiredVal: the data you are looking for in x
+%
+% Description:
+%
+% This function finds the closest value to desiredVal that exsists in x
+%
+% Outputs:
+%
+% Output one is the nearest value
+%
+% Output two is the index where the nearest value is found
+
+if nargin == 2
+    if all(ismember(x,desiredVal)) == 1 %% This is the O(1) case
+        [nearVal index] = ismember(x, desiredVal);
+    else
+        index
+        for idx=1:size(desiredVal,1);
+            [temp, index] = min(abs(x-desiredVal(idx))); %% Thank you Jan Simon for this equation
+            nearVal = x(index);
+    end
+else
+    disp('You have not entered the correct amount of parameters');
+end
