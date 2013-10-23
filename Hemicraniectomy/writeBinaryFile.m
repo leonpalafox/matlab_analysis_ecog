@@ -1,4 +1,4 @@
-function writeBinaryFile(time_data , eegdata, filename, location)
+function writeBinaryFile(time_data , eegdata, filename, varargin)
 %WRITEBINARYFILE creates a binary file with te format that we have been
 %using in the Penn Epxeriments done in October 1st and 11th.
 %WRITEBINARYFILE uses data that has been precomputed alreeady and creates
@@ -22,9 +22,10 @@ function writeBinaryFile(time_data , eegdata, filename, location)
 %location indicated in the input
 %(C) L.Palafox 2013
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-if nargin < 3 %if a location was not specified
+if nargin == 3 %if a location was not specified
     fname = filename; %set the file in the current folder
 else
+    location = varargin{1}; %Use the given location
     if location(end) == '/'; %check if the given location has the inverted slash
         fname = [location filename];
     else
@@ -33,7 +34,7 @@ else
 end
 fid=fopen(fname,'w');%open the file so we can write it
 fseek(fid,0,'bof');%go to the beginning of the file
-time_samples, num_channels = size(eegdata);
+[time_samples, num_channels] = size(eegdata);
 labels = zeros(time_samples, 4); %labels variable refers to the simulated force data.
                                 %this line just fills out the first 4
                                 %data columns with the same force data
@@ -43,7 +44,7 @@ labels = zeros(time_samples, 4); %labels variable refers to the simulated force 
                                 %are using
                                 
 for writing_idx=1:time_samples %iterate over time samples
-    fwrite(fid,time_axis(writing_idx),'uint64');%8 byte unsigned int
+    fwrite(fid,time_data(writing_idx),'uint64');%8 byte unsigned int
     fwrite(fid,labels(writing_idx,:), 'float');%4 byte float
     fwrite(fid, eegdata(writing_idx,:), 'float');%4 byte float
 end                    
