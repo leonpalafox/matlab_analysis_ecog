@@ -17,12 +17,20 @@ switch variable_name
     case 'Original_Sampling_Rate'
         variable = 25000;
     case 'Desired_Sampling_Rate'
-        variable = 5000;
+        variable = 300;
     case 'Window_Size'
         variable = 0.300;
     case 'number_recorded_channels'
         %number of channels recorded
-        variable = 16;
+        variable = 60;
+    case 'overlap_percentage'
+        variable = 0.750;
+    case 'Reference_Channel'
+        variable = 1; %use channel 1 as reference, it can be changed to any channel 
+    case 'right_limit'
+        variable = 2; %limit of the right side in seconds
+    case 'left_limit'
+        variable = 2; %limit of the left side in seconds
         
         
 end

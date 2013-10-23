@@ -6,5 +6,9 @@ function spectogram_single_channel(channel, large_power_matrix, T, F)
     channel_data = large_power_matrix(:,frequency_elem*(channel_to_plot-1)+1:frequency_elem*(channel_to_plot));
     %get the information from a specific channel
     surf(T,F,10*log10(channel_data'),'edgecolor','none'); axis tight;
+    xlabel('Time (sec)');
+    ylabel('Frequency (Hz)');
+
+
     view(0,90);
 end

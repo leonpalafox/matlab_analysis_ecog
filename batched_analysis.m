@@ -8,20 +8,25 @@ num_chan = get_variables('number_of_channels');
 num_record_chan =  get_variables('number_recorded_channels');
 originalSamplingRate = get_variables('Original_Sampling_Rate');
 desired_samplingRate = get_variables('Desired_Sampling_Rate'); %This is the desired post decimating sampling rate
-decimate_factor = originalSamplingRate/desired_samplingRate;%set the decimation factor
-samplingRate = originalSamplingRate/decimate_factor; %The 25000 is hardcoded to the sampling rate we used to do the data capture.
-window_size = 0.10; %size of the window in seconds
-window_size = window_size * samplingRate; %transform the window size to samples
+ref_channel = get_variables('Reference_Channel');
+decimate_factor = floor(originalSamplingRate/desired_samplingRate);%set the decimation factor
+samplingRate = floor(originalSamplingRate/decimate_factor); %The 25000 is hardcoded to the sampling rate we used to do the data capture.
+real_sampling_rate = originalSamplingRate/decimate_factor;
+window_size = 0.300; %size of the window in seconds
+window_size = floor(window_size * samplingRate); %transform the window size to samples
+overlap_perc = get_variables('overlap_percentage');
+win_overlap = floor(window_size * overlap_perc);
 size_of_batch = 10; %size of the batch in seconds
+first_batch = 1;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %Read the data files
 root_path = ['/home/leon/Data/Penn/Oct_11'];
-%time_stamps_file = [root_path '/data_click_Tue_01.10.2013_10:12:28'];
+time_stamps_file = [root_path '/data_click_Tue_01.10.2013_10:12:28'];
 data_file = [root_path '/data'];
-data_file = 'dummy.bin';
+%data_file = 'dummy.bin';
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -52,8 +57,9 @@ tic
 large_power_matrix = [];
 large_labels = [];
 T_axis=[];
+large_force =[];
 %Start the batched analysis
-for batch_idx = 1:max_num_batches
+for batch_idx = first_batch:max_num_batches
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     channels_data = return_batch(data_file, size_of_batch, originalSamplingRate, batch_idx, 'eeg');
     force = return_batch(data_file, size_of_batch, originalSamplingRate, batch_idx, 'force');
@@ -66,29 +72,55 @@ for batch_idx = 1:max_num_batches
     x=decimate(channels_data(:,1), decimate_factor);%set a decimation on the first channel to get the value of the matrix
     force = decimate(force, decimate_factor);
     channels_data_dec = zeros(size(x,1), num_chan);%generate matrix for speed purposes
-    
+    channels_data_dec(:,1) = x; %allocate the first channel
     for chidx=2:num_chan
         channels_data_dec(:,chidx) = decimate(channels_data(:,chidx), decimate_factor); %do the decimation of the data
     end
     channels_data = channels_data_dec;
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
+  
     %clean the workspace to free up memory
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%55
     clear x;
     clear channels_data_dec;
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
+    %Adding Reference to the channels
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %reference_data = repmat(mean(channels_data,2),1,num_chan);%obtain the mean and repeat it over the number of channels for the later operation.
+    %reference_data = repmat(channels_data(:,ref_channel),1,num_chan);
+    %channels_data=channels_data-reference_data; %rest the mean to normalize
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %%%Check if it is the first iteration to generate the placeholder
+    %%%matrix for the raw data
+    [time, data] = size(channels_data); %get the size of the data
 
-    mean_data = repmat(mean(channels_data,2),1,num_chan);%obtain the mean and repeat it over the number of channels for the later operation.
-    channels_data=channels_data-mean_data; %rest the mean to normalize
-
+    if batch_idx == 1
+        raw_data =zeros(time*(max_num_batches-1), data);% generate the place holder matrix
+      
+    end
+    start_idx = (batch_idx-1)*time+1;
+    if batch_idx~=max_num_batches
+        raw_data(start_idx:batch_idx*time,:) = channels_data;
+    else
+        raw_data = [raw_data; channels_data];%The last batch might not be consistent, so we only append it
+    end
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
+    
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %calculate the spectrogram for the first channel to generate the matrix
-    [S,F,T,P] = spectrogram(channels_data(:,1), hann(window_size), 0, window_size, samplingRate);
+    [S,F,T,P] = spectrogram(channels_data(:,1), hann(window_size), win_overlap, window_size, samplingRate);
     [power_p, time_p] = size(P);
     power_matrix = zeros(time_p, power_p * num_chan); %generate the nameholder matrix for the pwoers
     power_matrix(:,1:power_p) = P'; %allocate the powers from the first channels
+    
+      
+    
     for chidx = 2:num_chan
-        [S,F,T,P] = spectrogram(channels_data(:,chidx), hann(window_size), 0, window_size, samplingRate);  %transform the channel
+        [S,F,T,P] = spectrogram(channels_data(:,chidx), hann(window_size), win_overlap, window_size, samplingRate);  %transform the channel
         pow_idx = (chidx-1)*power_p+1;
         power_matrix(:,pow_idx:chidx*power_p) = P'; %allocate the powers from the channels
     end
@@ -101,39 +133,204 @@ for batch_idx = 1:max_num_batches
     labels = labelize(force, force_threshold);
     large_power_matrix = [large_power_matrix; power_matrix];
     large_labels = [large_labels; labels];
-    T_axis = [T_axis T*batch_idx];
-    
+    large_force = [large_force; force];
+    if isempty(T_axis) %checks if it is the first iteration
+        T_axis = T;%assigns the current time stamp
+    else %if not, add the current time stamp plus the last element of the previous
+        T_axis = [T_axis T_axis(end)+T];%<<<<<<CHECK THIS
+    end
 end
 
-toc
+ntp_raw_data = size(raw_data,1);%Time points in the raw data vector
+raw_time_axis = (1:ntp_raw_data)/real_sampling_rate; %Get the new time axis based on the decimated sampling rate
+fourier_sampling_rate = 1/diff(T(1:2));
+
+
+
 offset_time = 0.010; %offset in seconds
 %large_labels = offset_label(large_labels', offset_time, 'positive')';%add an offset to the labels
 [b,dev,stats] = glmfit(large_power_matrix ,large_labels,'binomial','logit'); % Logistic regression
 coeff_test = testing_hyp(b);%test hypotesis to check whcih values are non zero
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%Plotting Section
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-figure
-perc_graph = 0.1; %this controls the major ticks of the plot to every 10% of the total
-imagesc(reshape(b(2:end),num_chan, size(F,1)))%generates a heat map with x axis as the frequency and y as the channel
-colorbar;
-set(gca,'XTick',[1:floor(size(F,1)*perc_graph):size(F,1)]);% shows ticks for every bin
-set(gca,'YTick',[1:num_chan]);% limits the ticks for the channels
-set(gca,'XTickLabel',F(1:floor(size(F,1)*perc_graph):end)); %set the ticks to be the center frequency
-set(gca,'XMinorTick','on'); %set the minor ticks on
-xlabel('Frequency[Hz]')
-ylabel('Channel')
 
-%plot the hypotesis testing
-figure
-perc_graph = 0.1; %this controls the major ticks of the plot to every 10% of the total
-imagesc(reshape(stats.p(2:end),num_chan, size(F,1)))%generates a heat map with x axis as the frequency and y as the channel
-colorbar;
-set(gca,'XTick',[1:floor(size(F,1)*perc_graph):size(F,1)]);% shows ticks for every bin
-set(gca,'YTick',[1:num_chan]);% limits the ticks for the channels
-set(gca,'XTickLabel',F(1:floor(size(F,1)*perc_graph):end)); %set the ticks to be the center frequency
-set(gca,'XMinorTick','on'); %set the minor ticks on
-xlabel('Frequency[Hz]')
-ylabel('Channel')
+
+
+
+plot_flag =1;
+if plot_flag ==1
+
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %%Plotting Section
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    figure 
+    subplot(2,1,1)
+    spectogram_single_channel(2, large_power_matrix, T_axis, F)%Plot the spectrogram of the first channel
+    title('Raw Data and Spectrogram associated with the working data file')
+    xlimit = get(gca, 'XLim');
+    xlim([0, xlimit(2)])
+    figureHandle = gcf;
+    set(findall(figureHandle,'type','text'),'fontSize',14,'fontWeight','bold')
+    subplot(2,1,2)
+    plot(raw_time_axis, raw_data)%Plot the raw data
+    xlim([0, xlimit(2)])
+    set(gca,'Color',[1 1 1]);
+    grid on
+    xlabel('Time(s)')
+    ylabel('Volts')
+    figureHandle = gcf;
+    set(findall(figureHandle,'type','text'),'fontSize',14,'fontWeight','bold')
+    set(gca,'FontSize',14)
+ 
+    
+
+
+
+    figure
+
+    %Plot regression weights using *normalized* channels
+    subplot(2,1,1);
+    perc_graph = 0.1; %this controls the major ticks of the plot to every 10% of the total
+    imagesc(reshape(b(2:end),num_chan, size(F,1)))%generates a heat map with x axis as the frequency and y as the channel
+    colorbar;
+    set(gca,'XTick',[1:floor(size(F,1)*perc_graph):size(F,1)]);% shows ticks for every bin
+    set(gca,'YTick',[1:num_chan]);% limits the ticks for the channels
+    set(gca,'XTickLabel',F(1:floor(size(F,1)*perc_graph):end)); %set the ticks to be the center frequency
+    set(gca,'XMinorTick','on'); %set the minor ticks on
+    xlabel('Frequency[Hz]')
+    ylabel('Channel')
+    title('Regression weights are plotted as colors. Data is normalized by channel by subtracting off the mean and dividing by standard deviation for a given channel.'); 
+
+    %Plot whether a given power band/channel combination has a statistically significant regression coefficient.
+    %Color scheme is black if coefficient is not significant.
+    subplot(2,1,2);
+    perc_graph = 0.1; %this controls the major ticks of the plot to every 10% of the total
+    colormap(gca,gray)
+    p_values = zeros(size(stats.p));%create new array to store the p_value
+    p_values(~isnan(stats.p))=1;%set all non Nan p values to zero
+    imagesc(reshape(p_values(2:end),num_chan, size(F,1)))%generates a heat map with x axis as the frequency and y as the channel
+    colorbar;
+    set(gca,'XTick',[1:floor(size(F,1)*perc_graph):size(F,1)]);% shows ticks for every bin
+    set(gca,'YTick',[1:num_chan]);% limits the ticks for the channels
+    set(gca,'XTickLabel',F(1:floor(size(F,1)*perc_graph):end)); %set the ticks to be the center frequency
+    set(gca,'XMinorTick','on'); %set the minor ticks on
+    title(['Color scheme is black if logistic regression coefficient is not significant. Number of NaN = ' int2str(sum(isnan(stats.p))) ' out of ' int2str(length(stats.p)) 'total coefficients']);
+    xlabel('Frequency[Hz]')
+    ylabel('Channel')
+
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %%Plot the aligned rising edges
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+    figure
+    frequency_matrix = zeros(num_chan, length(T_axis)); %matrix that has channels in the rows and time in the X, to plot averaged frequencies
+    desired_frequencies = [12:30]; %Frequencies in the Beta Band
+    for chan_idx = 1:num_chan
+        chan_power_mat = large_power_matrix(:,(chan_idx-1)*length(F)+1:chan_idx*length(F)); %extract the info for the current channel
+        channel_frequency = extract_frequency(chan_power_mat, F, desired_frequencies, 'average'); %extract the frequencies that we want
+        frequency_matrix(chan_idx,:) = channel_frequency;%assigns those frequencies to the channel
+    end
+    %surf(T_axis,[1:num_chan],10*log10(frequency_matrix),'edgecolor','none'); axis tight; %plot them
+    view(0,90)%change the view
+
+    %generate the aligned values
+    [aligned_mat aligned_time] = align_data(large_labels', frequency_matrix', 'rise', 1/T(1));%align to every rise in the labels
+    [aligned_force aligned_time] = align_data(large_labels', large_force, 'rise', 1/T(1));%align to every rise in the labels
+    subplot(4,1,1:3)
+    surf(aligned_time,[1:16],10*log10(mean(aligned_mat,3)'),'edgecolor','none'); axis tight;
+    title('Beta band (average power at 12-30 Hz) for all channels, aligned to rising edge ')
+    ylabel('Channels')
+    view(0,90)
+    subplot(4,1,4)
+    plot(aligned_time, mean(aligned_force,3))
+    xlabel('Time[s]')
+    ylabel('Force [Force Units]')
+    axis tight;
+
+    figure
+    frequency_matrix = zeros(num_chan, length(T_axis)); %matrix that has channels in the rows and time in the X, to plot averaged frequencies
+    desired_frequencies = [65:115]; %Frequencies in the Gamma Band
+    for chan_idx = 1:num_chan
+        chan_power_mat = large_power_matrix(:,(chan_idx-1)*length(F)+1:chan_idx*length(F)); %extract the info for the current channel
+        channel_frequency = extract_frequency(chan_power_mat, F, desired_frequencies, 'average'); %extract the frequencies that we want
+        frequency_matrix(chan_idx,:) = channel_frequency;%assigns those frequencies to the channel
+    end
+    %surf(T_axis,[1:num_chan],10*log10(frequency_matrix),'edgecolor','none'); axis tight; %plot them
+    view(0,90)%change the view
+
+    %generate the aligned values
+    [aligned_mat aligned_time] = align_data(large_labels', frequency_matrix', 'rise', 1/T(1));%align to every rise in the labels
+    [aligned_force aligned_time] = align_data(large_labels', large_force, 'rise', 1/T(1));%align to every rise in the labels for the force
+    subplot(4,1,1:3)
+    surf(aligned_time,[1:16],10*log10(mean(aligned_mat,3)'),'edgecolor','none'); axis tight;
+    title('Gamma band (average power at 65-115 Hz) for all channels, aligned to rising edge ')
+    ylabel('Channels')
+    view(0,90)
+    subplot(4,1,4)
+    plot(aligned_time, mean(aligned_force,3))
+    xlabel('Time[s]')
+    ylabel('Force [Force Units]')
+    axis tight;
+
+
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %%Plot the aligned falling edges
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+    figure
+    frequency_matrix = zeros(num_chan, length(T_axis)); %matrix that has channels in the rows and time in the X, to plot averaged frequencies
+    desired_frequencies = [12:30]; %Frequencies in the Beta Band
+    for chan_idx = 1:num_chan
+        chan_power_mat = large_power_matrix(:,(chan_idx-1)*length(F)+1:chan_idx*length(F)); %extract the info for the current channel
+        channel_frequency = extract_frequency(chan_power_mat, F, desired_frequencies, 'average'); %extract the frequencies that we want
+        frequency_matrix(chan_idx,:) = channel_frequency;%assigns those frequencies to the channel
+    end
+    %surf(T_axis,[1:num_chan],10*log10(frequency_matrix),'edgecolor','none'); axis tight; %plot them
+    view(0,90)%change the view
+
+    %generate the aligned values
+    [aligned_mat aligned_time] = align_data(large_labels', frequency_matrix', 'fall', 1/T(1));%align to every rise in the labels
+    [aligned_force aligned_time] = align_data(large_labels', large_force, 'fall', 1/T(1));%align to every rise in the labels
+    subplot(4,1,1:3)
+    surf(aligned_time,[1:16],10*log10(mean(aligned_mat,3)'),'edgecolor','none'); axis tight;
+    title('Beta band (average power at 12-30 Hz) for all channels, aligned to falling edge ')
+    ylabel('Channels')
+    view(0,90)
+    subplot(4,1,4)
+    plot(aligned_time, mean(aligned_force,3))
+    xlabel('Time[s]')
+    ylabel('Force [Force Units]')
+    axis tight;
+
+    figure
+    frequency_matrix = zeros(num_chan, length(T_axis)); %matrix that has channels in the rows and time in the X, to plot averaged frequencies
+    desired_frequencies = [65:115]; %Frequencies in the Beta Band
+    for chan_idx = 1:num_chan
+        chan_power_mat = large_power_matrix(:,(chan_idx-1)*length(F)+1:chan_idx*length(F)); %extract the info for the current channel
+        channel_frequency = extract_frequency(chan_power_mat, F, desired_frequencies, 'average'); %extract the frequencies that we want
+        frequency_matrix(chan_idx,:) = channel_frequency;%assigns those frequencies to the channel
+    end
+    %surf(T_axis,[1:num_chan],10*log10(frequency_matrix),'edgecolor','none'); axis tight; %plot them
+    view(0,90)%change the view
+
+    %generate the aligned values
+    [aligned_mat aligned_time] = align_data(large_labels', frequency_matrix', 'fall', 1/T(1));%align to every rise in the labels
+    [aligned_force aligned_time] = align_data(large_labels', large_force, 'fall', 1/T(1));%align to every rise in the labels for the force
+    subplot(4,1,1:3)
+    surf(aligned_time,[1:16],10*log10(mean(aligned_mat,3)'),'edgecolor','none'); axis tight;
+    title('Gamma band (average power at 65-115 Hz) for all channels, aligned to falling edge ')
+    ylabel('Channels')
+    view(0,90)
+    subplot(4,1,4)
+    plot(aligned_time, mean(aligned_force,3))
+    xlabel('Time[s]')
+    ylabel('Force [Force Units]')
+    axis tight;
+end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%Plot full spectrograms aligend to raising edges per channel
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
 toc
  

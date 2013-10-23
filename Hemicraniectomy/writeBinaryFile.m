@@ -1,0 +1,50 @@
+function writeBinaryFile(time_data , eegdata, filename, location)
+%WRITEBINARYFILE creates a binary file with te format that we have been
+%using in the Penn Epxeriments done in October 1st and 11th.
+%WRITEBINARYFILE uses data that has been precomputed alreeady and creates
+%an array of the correct format and size, the current version just puts
+%zeros where the force sensor should be, this will be updated in the next
+%release.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%INPUT:
+%--------------------------------------------------------------------------
+%time_data: Holds an array of time, that can be real time (in seconds) or
+%simply samples
+%eegdata:Data with the format TxN where T is the time samples and N are the
+%number of channels
+%filename: name of the file 
+%location: Set the folder where the data is to be stored, binary files may
+%be large, so it is recommended that the location has enough memory.
+%--------------------------------------------------------------------------
+%OUTPUT:
+%--------------------------------------------------------------------------
+%It generates a binary file with the name indicated in the input, in the
+%location indicated in the input
+%(C) L.Palafox 2013
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+if nargin < 3 %if a location was not specified
+    fname = filename; %set the file in the current folder
+else
+    if location(end) == '/'; %check if the given location has the inverted slash
+        fname = [location filename];
+    else
+        fname = [location '/' filename]; %if it does not, just add it
+    end
+end
+fid=fopen(fname,'w');%open the file so we can write it
+fseek(fid,0,'bof');%go to the beginning of the file
+time_samples, num_channels = size(eegdata);
+labels = zeros(time_samples, 4); %labels variable refers to the simulated force data.
+                                %this line just fills out the first 4
+                                %data columns with the same force data
+                                %to conform with expected data format
+                                %Int his case, labels is just 0s
+                                %The 4 is hard coded for the format that we
+                                %are using
+                                
+for writing_idx=1:time_samples %iterate over time samples
+    fwrite(fid,time_axis(writing_idx),'uint64');%8 byte unsigned int
+    fwrite(fid,labels(writing_idx,:), 'float');%4 byte float
+    fwrite(fid, eegdata(writing_idx,:), 'float');%4 byte float
+end                    
+    
