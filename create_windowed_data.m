@@ -12,7 +12,7 @@ function [windowed_data, windowed_time] = create_windowed_data(data, sampling_fr
 %   array
 %-------------------------------------------------------------------------
 %  Output
-%   windowed_data: and array of size TimexDxTrial, where time is the size
+%   windowed_data: and array of size DxTIMExTrial, where time is the size
 %   of the window in samples.
 %   windowed_time: time array useful for ploting
 

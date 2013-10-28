@@ -62,8 +62,7 @@ large_force =[];
 for batch_idx = first_batch:max_num_batches
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     channels_data = return_batch(data_file, size_of_batch, originalSamplingRate, batch_idx, 'eeg');
-    %force = return_batch(data_file, size_of_batch, originalSamplingRate, batch_idx, 'force');
-    force = channels_data(:,71) - channels_data(:,70);%this only applies for the hemi dataset
+    force = return_batch(data_file, size_of_batch, originalSamplingRate, batch_idx, 'force');
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
     %pre process data files (trim, decimate)
@@ -130,9 +129,7 @@ for batch_idx = first_batch:max_num_batches
     [TF, match_idx] = findNearest(T,time_axis); %is member looks up which indexes match the output from the 
     force = force(match_idx,1);%recapture the force using the matched indexes
     force_threshold = 0.2;
-    threshold_value = 15000;%These are paremeters only good for the hemi dataset
-    %labels = labelize(force, force_threshold);
-    labels = onset_detection(abs(force),'Teager',threshold_value);
+    labels = labelize(force, force_threshold);
     large_power_matrix = [large_power_matrix; power_matrix];
     large_labels = [large_labels; labels];
     large_force = [large_force; force];
@@ -143,10 +140,17 @@ for batch_idx = first_batch:max_num_batches
     end
 end
 
+%align the new label using the EMG
+onset = raw_data(:,71)- raw_data(:,70); %get the EMG data
+EMG_Threshold = 16000;%Set a threshold for the EMG data for the Hemicraneoctomy paper data
+labels = onset_detection(abs(onset),'Teager',EMG_Threshold); %Generate the labels
+large_force =onset;%Set the vector to the vector we used befor as the force sensor vector.
+
 ntp_raw_data = size(raw_data,1);%Time points in the raw data vector
 raw_time_axis = (1:ntp_raw_data)/real_sampling_rate; %Get the new time axis based on the decimated sampling rate
 fourier_sampling_rate = 1/diff(T(1:2));
-
+[TF, match_idx] = findNearest(T_axis, raw_time_axis);
+large_labels = labels(match_idx,1);
 
 break
 offset_time = 0.010; %offset in seconds
@@ -156,8 +160,11 @@ coeff_test = testing_hyp(b);%test hypotesis to check whcih values are non zero
 
 
 
-
-plot_flag =1;
+%%%%%%%%%%%%%%%%%%%%%%%%
+%Here we create some analysis plots that might be useful if the regression
+%is working fine
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+plot_flag =1; %This flag controls the plots
 if plot_flag ==1
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -292,7 +299,7 @@ if plot_flag ==1
     [aligned_mat aligned_time] = align_data(large_labels', frequency_matrix', 'fall', 1/T(1));%align to every rise in the labels
     [aligned_force aligned_time] = align_data(large_labels', large_force, 'fall', 1/T(1));%align to every rise in the labels
     subplot(4,1,1:3)
-    surf(aligned_time,[1:16],10*log10(mean(aligned_mat,3)'),'edgecolor','none'); axis tight;
+    surf(aligned_time,[1:num_chan],10*log10(mean(aligned_mat,3)'),'edgecolor','none'); axis tight;
     title('Beta band (average power at 12-30 Hz) for all channels, aligned to falling edge ')
     ylabel('Channels')
     view(0,90)
@@ -303,9 +310,9 @@ if plot_flag ==1
     axis tight;
 
     figure
-    frequency_matrix = zeros(num_chan, length(T_axis)); %matrix that has channels in the rows and time in the X, to plot averaged frequencies
+    frequency_matrix = zeros(num_chan-8, length(T_axis)); %matrix that has channels in the rows and time in the X, to plot averaged frequencies
     desired_frequencies = [65:115]; %Frequencies in the Beta Band
-    for chan_idx = 1:num_chan
+    for chan_idx = 1:num_chan-8
         chan_power_mat = large_power_matrix(:,(chan_idx-1)*length(F)+1:chan_idx*length(F)); %extract the info for the current channel
         channel_frequency = extract_frequency(chan_power_mat, F, desired_frequencies, 'average'); %extract the frequencies that we want
         frequency_matrix(chan_idx,:) = channel_frequency;%assigns those frequencies to the channel
@@ -317,7 +324,7 @@ if plot_flag ==1
     [aligned_mat aligned_time] = align_data(large_labels', frequency_matrix', 'fall', 1/T(1));%align to every rise in the labels
     [aligned_force aligned_time] = align_data(large_labels', large_force, 'fall', 1/T(1));%align to every rise in the labels for the force
     subplot(4,1,1:3)
-    surf(aligned_time,[1:16],10*log10(mean(aligned_mat,3)'),'edgecolor','none'); axis tight;
+    surf(aligned_time,[1:num_chan-8],10*log10(mean(aligned_mat,3)'),'edgecolor','none'); axis tight;
     title('Gamma band (average power at 65-115 Hz) for all channels, aligned to falling edge ')
     ylabel('Channels')
     view(0,90)

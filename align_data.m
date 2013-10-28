@@ -7,6 +7,7 @@ function [data_array, time_axis] = align_data(labels, data, edges, sampling_freq
 %indexes
 %output:
 %It generates a plot of the aligned data.
+%data_array: Is a TimexFeatxTrials matrix
 %Set Parameters
 size_right = get_variables('right_limit'); %length of the signal ahead of the offset (seconds)
 size_left = get_variables('left_limit');%length of the signal after the offset (seconds)

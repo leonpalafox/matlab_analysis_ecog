@@ -18,6 +18,7 @@ tic
 root_path = ['/home/leon/Data/Penn/Oct_1'];
 time_stamps_file = [root_path '/data_click_Tue_01.10.2013_10:12:28'];
 data_file = [root_path '/data_Tue_01.10.2013_10:12:24'];
+data_file = ['chabacano']
 fid = fopen(time_stamps_file,'r');
 %read first column
 fseek(fid, 0, 'bof'); 
