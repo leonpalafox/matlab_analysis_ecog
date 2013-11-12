@@ -199,7 +199,7 @@ if plot_flag ==1
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %%Plotting Section
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    figure 
+    fig1 = figure('visible','off');
     subplot(2,1,1)
     spectogram_single_channel(1, large_power_matrix, T_axis, F)%Plot the spectrogram of the first channel
     title('Raw Data and Spectrogram associated with the working data file')
@@ -224,7 +224,7 @@ if plot_flag ==1
 
 
 
-    figure
+    fig2 = figure('visible','off');
     subplot(2,1,1);
     stem(b,'r')
     xlabel('Coefficient for the regression')
@@ -245,7 +245,7 @@ if plot_flag ==1
     %%Plot the aligned rising edges
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-    figure
+    fig3 = figure('visible','off');
     frequency_matrix = zeros(num_chan, length(T_axis)); %matrix that has channels in the rows and time in the X, to plot averaged frequencies
     desired_frequencies = [12:30]; %Frequencies in the Beta Band
     for chan_idx = 1:num_chan
@@ -273,7 +273,7 @@ if plot_flag ==1
     myaa([4 2],'beta_rising.png')
     
 
-    figure
+    
     frequency_matrix = zeros(num_chan, length(T_axis)); %matrix that has channels in the rows and time in the X, to plot averaged frequencies
     desired_frequencies = [65:115]; %Frequencies in the Gamma Band
     for chan_idx = 1:num_chan
@@ -306,7 +306,7 @@ if plot_flag ==1
     %%Plot the aligned falling edges
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-    figure
+    fig4 = figure('visible','off')
     frequency_matrix = zeros(num_chan, length(T_axis)); %matrix that has channels in the rows and time in the X, to plot averaged frequencies
     desired_frequencies = [12:30]; %Frequencies in the Beta Band
     for chan_idx = 1:num_chan
@@ -334,7 +334,7 @@ if plot_flag ==1
     myaa([4 2],'beta_falling.png')
     
 
-    figure
+    fig5 = figure('visible','off')
     frequency_matrix = zeros(num_chan-8, length(T_axis)); %matrix that has channels in the rows and time in the X, to plot averaged frequencies
     desired_frequencies = [65:115]; %Frequencies in the Beta Band
     for chan_idx = 1:num_chan
