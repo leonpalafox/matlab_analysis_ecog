@@ -1,0 +1,19 @@
+function [labels] = labelize_sequence(data, threshold)
+%Function to obtaion discrete labels from the force sensors, in this case,
+%we detect the first threshold passing, instead of just comparing.
+%   input:
+%   data: raw data from the force sensor
+%   threshold: threshold to determine when a data point is considered a one
+%   Output:
+%   labels: 0s and 1s, where we have 0 for not an onset and 1 for an onset
+[ntp, dim] = size(data);
+labels = zeros(ntp, dim); %generate the placeholder array
+for data_idx = 1:nt
+    if data(data_idx,1)>threshold%if a datapoint crossed the threshold
+        data_count = data_count+1;
+        
+        
+        
+labels(force>=threshold) = 1;
+end
+

@@ -32,7 +32,7 @@ end
 for idx = edge_idx
     left_limit = idx - size_left_samples; %set the index of the left part
     right_limit = idx + size_right_samples;%set the index of the right part
-    if left_limit<0%if the limit is less than zero it means is not consistent with out choice
+    if left_limit<=0%if the limit is less than zero it means is not consistent with out choice
         left_samples = size_left_samples - abs(left_limit); 
         left_limit = 1;
         data_array(end-(left_samples+size_right_samples-1):end,:,count_trial) = data(left_limit:right_limit,:);

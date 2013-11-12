@@ -1,0 +1,100 @@
+%Analyze the Hemi data and create he plots of channels and frequencies.
+%Analyze_Hemi creates the plots in Page 6 of Brad Voytek Hemicraniectomy Paper 
+%It used data created by the script batched_data_analysis.m
+%
+frequency_elem = size(large_power_matrix,2)/num_chan; %get the offset for each frequency component
+%figure
+%plot the comparisson of given bands
+% slide_freq = 5; %define the slide in hertz
+% freq_window = 15;
+% num_plots=6;
+% for plot_idx = 1:num_plots
+%     lower_freq = (plot_idx-1)*slide_freq+1;
+%     higher_freq = lower_freq + freq_window-1;
+%     desired_frequencies = [lower_freq:higher_freq]; %Frequencies in the Beta Band
+%     subplot(num_plots/3,3,plot_idx)
+%     frequency_matrix = zeros(num_chan, length(T_axis)); %matrix that has channels in the rows and time in the X, to plot averaged frequencies
+%     for chan_idx = 1:num_chan
+%         chan_power_mat = large_power_matrix(:,(chan_idx-1)*length(F)+1:chan_idx*length(F)); %extract the info for the current channel
+%         channel_frequency_move = extract_frequency(chan_power_mat, F, desired_frequencies, 'average'); %extract the frequencies that we want
+%         frequency_matrix(chan_idx,:) = channel_frequency_move;%assigns those frequencies to the channel
+%     end
+%     surf(T_axis,[1:num_chan],log10(frequency_matrix),'edgecolor','none'); axis tight; %plot them
+%     xlabel('Time(s)')
+%     ylabel('Channel')
+%     axis tight;
+%     title(['Move Band from ' num2str(lower_freq) ' to ' num2str(higher_freq)])
+%     %set variables so both plots have the same scales
+%     xlimit = get(gca,'XLim');
+%     ylimit = get(gca,'YLim');
+%     colorbar
+%     colorlimits = caxis;%get the color bar scale
+%     if plot_idx == 1
+%         color_vector = colorlimits; %save the color limits to use them in the next set of plots, in the same order
+%     else
+%         color_vector = [color_vector; colorlimits];%append new colors
+%     end
+%     view(0,90)%change the view
+% end     
+figure
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%And we create plots for averages over different trials
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%This code generates the plots that is in the Figure 6 in the
+%Hemicraneoctomy Paper
+frequency_matrix = zeros(num_chan-8, length(T_axis)); %matrix that has channels in the rows and time in the X, to plot averaged frequencies
+desired_frequencies = [65:115]; %Frequencies in the Beta Band
+for chan_idx = 1:num_chan-8
+    figure %creates a new figure per channe.
+    chan_power_mat = large_power_matrix(:,(chan_idx-1)*length(F)+1:chan_idx*length(F)); %extract the info for the current channel
+    [aligned_mat aligned_time] = align_data(large_labels', chan_power_mat, 'rise', fourier_sampling_rate);%align to every rise in the labels
+    [aligned_force aligned_time] = align_data(large_labels', large_force, 'rise',fourier_sampling_rate);%align to every rise in the labels for the force
+    [time_freq, channel_f, num_trials] = size(aligned_mat);%get the features toi create the window
+    trial_matrix = zeros(num_trials, time_freq);%create the place holder matrix
+    for trial_idx = 1:num_trials
+        channel_frequency = extract_frequency(aligned_mat(:,:,trial_idx), F, desired_frequencies, 'average'); %extract the frequencies that we want
+        trial_matrix(trial_idx,:) = channel_frequency;%assigns those frequencies to the channel
+    end
+    subplot(4,1,1:3)
+    surf(aligned_time,[1:num_trials],log10(trial_matrix),'edgecolor','none','FaceColor','interp'); axis tight; %plot them
+    view(0,90)
+    title(['[15 to 30] Hz Trials aligned for Channel ' num2str(chan_idx)])
+    xlabel('Time(s)')
+    ylabel('Trials')
+    subplot(4,1,4)
+    plot(aligned_time, mean(aligned_force,3))
+    xlabel('Time[s]')
+    ylabel('Force [Force Units]')
+end
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%Plot aligned trials
+frequency_matrix = zeros(num_chan-8, length(T_axis)); %matrix that has channels in the rows and time in the X, to plot averaged frequencies
+desired_frequencies = [65:115]; %Frequencies in the Beta Band
+chan_power_mat(:,:) = 0; %reinitialize so we can put the averages here
+for chan_idx = 1:num_chan-8
+    chan_power_mat = chan_power_mat + large_power_matrix(:,(chan_idx-1)*length(F)+1:chan_idx*length(F)); %extract the info for the current channel
+end
+chan_power_mat = chan_power_mat/(num_chan-8);
+[aligned_mat aligned_time] = align_data(large_labels', chan_power_mat, 'rise', fourier_sampling_rate);%align to every rise in the labels
+[aligned_force aligned_time] = align_data(large_labels', large_force, 'rise', fourier_sampling_rate);%align to every rise in the labels for the force
+[time_freq, channel_f, num_trials] = size(aligned_mat);%get the features toi create the window
+trial_matrix = zeros(num_trials, time_freq);%create the place holder matrix
+for trial_idx = 1:num_trials
+    channel_frequency = extract_frequency(aligned_mat(:,:,trial_idx), F, desired_frequencies, 'average'); %extract the frequencies that we want
+    trial_matrix(trial_idx,:) = channel_frequency;%assigns those frequencies to the channel
+end
+subplot(4,1,1:3)
+surf(aligned_time,[1:num_trials],log10(trial_matrix),'edgecolor','none','FaceColor','interp'); axis tight; %plot them
+view(0,90)
+title(['[15 to 30] Hz Trials aligned for Averaged Channels '])
+xlabel('Time(s)')
+ylabel('Trials')
+subplot(4,1,4)
+plot(aligned_time, mean(aligned_force,3))
+xlabel('Time[s]')
+ylabel('Force [Force Units]')
+
+
+

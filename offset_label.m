@@ -6,7 +6,7 @@ function [ offset_labels, offset_data ] = offset_label(data, labels, offset_time
 %   features
 %   offset_time: time to offset the data
 %   output:
-%   offset_labels: data offset by the amount of time.
+%   offset_data: data offset by the amount of time.
 %   offset_labels: labels after the offset
 %The signal is decreased to avoid padding with zeros at the beginning or
 %end of the array

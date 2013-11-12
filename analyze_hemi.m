@@ -56,7 +56,7 @@ for trial_idx = 1:num_trials
     trial_matrix(trial_idx,:) = channel_frequency;%assigns those frequencies to the channel
 end
 subplot(4,1,1:3)
-surf(aligned_time,[1:num_trials],log10(trial_matrix),'edgecolor','none','FaceColor','interp'); axis tight; %plot them
+surf(aligned_time,[1:num_trials],(trial_matrix),'edgecolor','none','FaceColor','interp'); axis tight; %plot them
 view(0,90)
 title(['[15 to 30] Hz Trials aligned for Averaged Channels '])
 xlabel('Time(s)')
